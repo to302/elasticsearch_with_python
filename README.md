@@ -1,522 +1,378 @@
-# Elasticsearch with Django
-
-## 환경
-MS-Windows 10 Home
-
-## 프로그램 설치
+# Python, Django, Elasticsearch 검색엔진 구축
+작성일 : 2022-03-15
+ 
+## 사용 환경
+- MS-Windows 10
+- CMD Console
 - Elasticsearch 8.1.0
 - Kibana 8.1.0
-- Python 패키지 Elasticsearch Client 8.1.0
+- Python 3.10.2
 
+## Elastic Stack 설치
+### Elasticsearch, Kibana [Download](https://www.elastic.co/kr/start)  
+### 로컬 PC 에서 압축 풀기 
++ Elasticsearch 설치 경로 : `D:\ES\elasticsearch-8.1.0`
++ Kibana 설치 경로 : `D:\ES\kibana-8.1.0`
 
-## Elastic Stack 개요
-> - https://www.elastic.co/kr/start
-> - http://kimjmin.net/2022/02/2022-02-elastic-8-install/  
-
-1. Download 'Elasticsearch'
-2. Download 'Kibana'
-3. Start Elasticsearch
-   ```cmd
-   bin\elasticsearch.bat
-   ```
-4. Start Kibana
-   ```cmd
-   bin\kibana.bat
-   ```
-5. Open Kibana  
-   http://localhost:5601
-
-  
-### Elasticsearch 설치 경로 
-> D:\bin\elasticsearch-8.1.0\  
-
-환경변수 %ES_HOME% 로 설치 경로 등록   
-
-### Kibana 설치 경로
-> D:\bin\kibana-8.1.0\
-
-### 참고 문서
-- [Install Elasticsearch with `.zip` on Windows][1]  
-- [Elastic 가이드 북][2]
-
-
-## Elasticsearch 실행 메세지 
-- 아래 실행 메세지 중에서 Kibana 에 대한 부분 확인 (enrollment token)
-  + Kibana 초기 설정에 필요
-- Kibana 에서 로그인 시 elastic 계정과 패스워드 사용 (아래 실행 메세지 참고)
+### Elasticsearch 실행  
 
 ```cmd
---------------------------------------------------------------------------------
+cd D:\ES\elasticsearch-8.1.0 
+bin\elasticsearch.bat
+```
+
+**처음 실행 시 기본 계정인 elastic 의 password 와 Kibana 와 연계를 위한 enrollment token 정보 확인 필요**  
+
+```
 -> Elasticsearch security features have been automatically configured!
 -> Authentication is enabled and cluster connections are encrypted.
 
 ->  Password for the elastic user (reset with `bin/elasticsearch-reset-password -u elastic`):
-  m*Ds1PqIVhugabHu1egF
+dydfO7opMFZBFI=76GdS
 
 ->  HTTP CA certificate SHA-256 fingerprint:
-  0370f93afacfbd830363261daad3f688cf8bae489841666d352743cab480aeea
+7232afeadcd21cd1193f7f5bbe1d475b12be3de76e44ddb961ec692cf725f94a
 
 ->  Configure Kibana to use this cluster:
 * Run Kibana and click the configuration link in the terminal when Kibana starts.
 * Copy the following enrollment token and paste it into Kibana in your browser (valid for the next 30 minutes):
-  eyJ2ZXIiOiI4LjEuMCIsImFkciI6WyIxOTIuMTY4LjIwLjU6OTIwMCJdLCJmZ3IiOiIwMzcwZjkzYWZhY2ZiZDgzMDM2MzI2MWRhYWQzZjY4OGNmOGJhZTQ4OTg0MTY2NmQzNTI3NDNjYWI0ODBhZWVhIiwia2V5IjoicEU3ZmJYOEIycGY2a0tZN2dFZkE6blNOcTJmbW1UMy1XbFAwWTB5Q1hsdyJ9
+eyJ2ZXIiOiI4LjEuMCIsImFkciI6WyIxMC4xMDEuMTQ1Ljk0OjkyMDAiXSwiZmdyIjoiNzIzMmFmZWFkY2QyMWNkMTE5M2Y3ZjViYmUxZDQ3NWIxMmJlM2RlNzZlNDRkZGI5NjFlYzY5MmNmNzI1Zjk0YSIsImtleSI6IlhKc3NpMzhCMGpUb2tGTHhydGhJOnktOVo1azFtUzNPWGk2VFpYSGVBa0EifQ==
 
 ->  Configure other nodes to join this cluster:
 * On this node:
-  - Create an enrollment token with `bin/elasticsearch-create-enrollment-token -s node`.
-  - Uncomment the transport.host setting at the end of config/elasticsearch.yml.
-  - Restart Elasticsearch.
+- Create an enrollment token with `bin/elasticsearch-create-enrollment-token -s node`.
+- Uncomment the transport.host setting at the end of config/elasticsearch.yml.
+- Restart Elasticsearch.
 * On other nodes:
-  - Start Elasticsearch with `bin/elasticsearch --enrollment-token <token>`, using the enrollment token that you generated.
+- Start Elasticsearch with `bin/elasticsearch --enrollment-token <token>`, using the enrollment token that you generated.
 ```
 
-### 실행 확인
-```sh
-curl --cacert %ES_HOME%\config\certs\http_ca.crt -u elastic https://localhost:9200 
+Elasticsearch 가 처음 시작되면 `config/certs` 디렉토리가 만들어지고, elasticsearch 접근을 위한 인증서 파일이 생성된다.  
+만들어진 `http_ca.crt` 파일은 Python 접속을 위해 사용된다.  
+시작 시 Console 에 보이는 내용 중 `HTTP CA certificate SHA-256 fingerprint` 항목의 값은 Python 에서 접속을 위해 사용된다. 
+
+
+### Kibana 실행
+```cmd
+cd D:\ES\kibana-8.1.0 
+bin\kibana.bat
 ```
 
-- windows 10 의 cmd 콘솔창에서 curl 이용하니 오류발생. (7.79.1.0 version)  
-  ```
-  curl: (60) schannel: CertGetCertificateChain trust error CERT_TRUST_REVOCATION_STATUS_UNKNOWN
-  More details here: https://curl.se/docs/sslcerts.html
+처음 시작되면 아래와 같이 설정을 위한 URL 정보가 나타난다.  
 
-  curl failed to verify the legitimacy of the server and therefore could not
-  establish a secure connection to it. To learn more about this situation and
-  how to fix it, please visit the web page mentioned above.
-  ```
+```
+i Kibana has not been configured.
+
+Go to http://localhost:5601/?code=704159 to get started.
+```   
+
+위 URL 로 접근했을 때 보이는 화면, 여기에 elasticsearch 시작 후 보이는 enrollment token 을 입력하고 'Configure Elastic' 버튼을 클릭한다.  
+Token 의 유효기간은 30분이니 주의!!    
+![](./images/kibana_configure.png)  
+
+설정이 진행되고, 로그인 화면이 보여진다. elastic 계정이 기본으로 만들어지며, elasticsearch 시작 시 보이는 패스워드를 이용해 로그인 한다.  
+![](./images/kibana_login.png)  
+
+elastic 계정으로 로그인 후, 패스워드 변경을 위해서 Management 화면으로 들어간다. (Management 클릭)  
+![](./images/kibana_management.png)  
+
+Users 메뉴에서 elastic 계정으로 들어가 비밀번호를 변경  
+
+### 사용 계정 만들기
+elastic 계정은 관리 작업을 위한 것으로 일반 연동에 사용될 수 없으므로 작업용 계정(pyagent)을 생성  
+권한은 상황에 따라 적당한 것으로...     
+![](./images/kibana_management_create_user.png)  
 
 
-- Git Bash 창에서 실행하니 정상 (7.78.0 version)  
-  ```
-    % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-  100   536  100   536    0     0  14122      0 --:--:-- --:--:-- --:--:-- 14888{
-    "name" : "KWAK-DELL7567",
-    "cluster_name" : "elasticsearch",
-    "cluster_uuid" : "iLtXFDzZTu-RQvSciYsftQ",
-    "version" : {
-      "number" : "8.1.0",
-      "build_flavor" : "default",
-      "build_type" : "zip",
-      "build_hash" : "3700f7679f7d95e36da0b43762189bab189bc53a",
-      "build_date" : "2022-03-03T14:20:00.690422633Z",
-      "build_snapshot" : false,
-      "lucene_version" : "9.0.0",
-      "minimum_wire_compatibility_version" : "7.17.0",
-      "minimum_index_compatibility_version" : "7.0.0"
-    },
-    "tagline" : "You Know, for Search"
-  }
-  ```
+## Kibana 에서 API key 만들기
+1. 위의 절차로 만들어진 pyagent 계정으로 로그인  
+2. Management - Security - API Keys 메뉴로 접근
+3. 우측상단 Create API key 버튼을 눌러 연동에 사용할 정보를 생성  
+   다양한 형식의 Key Format 이 주어지므로 필요한 것을 사용하면 된다.
+   이어지는 Python 예제에서는 JSON 형식의 데이타를 이용한다.    
+   **key 는 만들 당시에만 보여지므로 복사를 따로 해두는 것이 좋다.**  
+   ![](./images/kibana_api_keys.png)  
 
-- windows 용으로 별도로 받아서 해도 정상적으로 보임
-  + https://curl.se/
-## Kibana 설정
-> config/kibana.yml  
-
-```yaml
-# This section was automatically generated during setup.
-elasticsearch.hosts: ['https://192.168.20.5:9200']
-elasticsearch.serviceAccountToken: AAEAAWVsYXN0aWMva2liYW5hL2Vucm9sbC1wcm9jZXNzLXRva2VuLTE2NDY4MTYzNjA4NzE6cUphekdUeVlTcU9yRWVFUnp2RkhjUQ
-elasticsearch.ssl.certificateAuthorities: ['D:\bin\kibana-8.1.0\data\ca_1646816361508.crt']
-xpack.fleet.outputs: [{id: fleet-default-output, name: default, is_default: true, is_default_monitoring: true, type: elasticsearch, hosts: ['https://192.168.20.5:9200'], ca_trusted_fingerprint: 0370f93afacfbd830363261daad3f688cf8bae489841666d352743cab480aeea}]
+### 다양한 Key 포맷   
+```
+Base64 : Ykp1M2kzOEIwalRva0ZMeEJOaGU6aTF1ekszZWxUVlNwWmhha0ZEOHZudw==
+JSON: {"id":"bJu3i38B0jTokFLxBNhe","name":"python_agent","api_key":"i1uzK3elTVSpZhakFD8vnw","encoded":"Ykp1M2kzOEIwalRva0ZMeEJOaGU6aTF1ekszZWxUVlNwWmhha0ZEOHZudw=="}
+Beats : bJu3i38B0jTokFLxBNhe:i1uzK3elTVSpZhakFD8vnw
+Logstach: bJu3i38B0jTokFLxBNhe:i1uzK3elTVSpZhakFD8vnw
 ```
 
-## Kibana Dev Tools
+## Kibana - Dev tools 를 이용해 샘플 데이타 만들기
+메뉴에서 보이는 'Dev tools' 화면으로 이동  
+![](./images/kibana_dev_tools.png)  
 
-### Data 입력
-#### input 1
+
+### 데이타 입력
+좌측 Console 에서 샘플 데이타 작성 후 삼각형 모양 클릭하면 입력   
+![](./images/kibana_dev_tools_console.png)  
+
 ```
-PUT /twitter/_doc/1
+POST test_index/_doc/1
 {
-    "user": "kimchy",
-    "post_date": "2018-11-15T13:12:00",
-    "message": "김치가 맛있나요?"
+    "body":"김치는 맛있어",
+    "name":"홍길동"
 }
 ```
 
-#### output 1
+우측 창에 입력 상태 확인
+비슷한 조건으로 몇 개 더 만든다.
 ```
+POST test_index/_doc/2
 {
-  "_index" : "twitter",
-  "_id" : "1",
-  "_version" : 1,
-  "result" : "created",
-  "_shards" : {
-    "total" : 2,
-    "successful" : 1,
-    "failed" : 0
-  },
-  "_seq_no" : 0,
-  "_primary_term" : 1
+    "body":"김치찌개도 맛있어",
+    "name":"황진이"
+}
+```
+```
+POST test_index/_doc/3
+{
+    "body":"김치찌개 먹고싶다.",
+    "name":"홍길동"
 }
 ```
 
-#### input 2 / output 2 
-**생략**
-
-#### input 3
+### 데이타 조회
 ```
-PUT /twitter/_doc/3
-{
-    "user": "elastic",
-    "post_date": "2019-01-15T01:46:38",
-    "message": "김치가 미국에서 인기인가요?"
-}
-```
-
-#### output 3
-```
-{
-  "_index" : "twitter",
-  "_id" : "3",
-  "_version" : 1,
-  "result" : "created",
-  "_shards" : {
-    "total" : 2,
-    "successful" : 1,
-    "failed" : 0
-  },
-  "_seq_no" : 2,
-  "_primary_term" : 1
-}
-```
-
-### Data 조회
-#### input 1
-```
-GET /twitter/_doc/3?pretty=true
-```
-
-#### output 1
-```
-{
-  "_index" : "twitter",
-  "_id" : "3",
-  "_version" : 1,
-  "_seq_no" : 2,
-  "_primary_term" : 1,
-  "found" : true,
-  "_source" : {
-    "user" : "elastic",
-    "post_date" : "2019-01-15T01:46:38",
-    "message" : "김치가 미국에서 인기인가요?"
-  }
-}
-```
-
-### Data 검색 - query 방식
-#### input 1
-```
-GET /twitter/_search?q=user:kimchy&pretty=true
-```
-
-#### output 1
-```
-{
-  "took" : 35,
-  "timed_out" : false,
-  "_shards" : {
-    "total" : 1,
-    "successful" : 1,
-    "skipped" : 0,
-    "failed" : 0
-  },
-  "hits" : {
-    "total" : {
-      "value" : 2,
-      "relation" : "eq"
-    },
-    "max_score" : 0.4700036,
-    "hits" : [
-      {
-        "_index" : "twitter",
-        "_id" : "1",
-        "_score" : 0.4700036,
-        "_source" : {
-          "user" : "kimchy",
-          "post_date" : "2018-11-15T13:12:00",
-          "message" : "김치가 맛있나요?"
-        }
-      },
-      {
-        "_index" : "twitter",
-        "_id" : "2",
-        "_score" : 0.4700036,
-        "_source" : {
-          "user" : "kimchy",
-          "post_date" : "2018-11-15T14:12:12",
-          "message" : "김치는 건강에 좋은가요?"
-        }
-      }
-    ]
-  }
-}
-```
-
-### Data 검색 - json 방식
-
-#### input 1
-```
-GET /twitter/_search?pretty=true
-{
-    "query" : {
-        "match" : { "user": "kimchy" }
-    }
-}
-```
-
-#### output 1
-**위와 같은 결과**
-
-### Data 검색 - wildcard 검색
-
-#### input 1
-```
-GET /twitter/_search?pretty=true
-{
-    "query" : {
-        "wildcard" : { "message": "*미국*" }
-    }
-}
-```
-
-#### output 1
-```
-{
-  "took" : 1,
-  "timed_out" : false,
-  "_shards" : {
-    "total" : 1,
-    "successful" : 1,
-    "skipped" : 0,
-    "failed" : 0
-  },
-  "hits" : {
-    "total" : {
-      "value" : 1,
-      "relation" : "eq"
-    },
-    "max_score" : 1.0,
-    "hits" : [
-      {
-        "_index" : "twitter",
-        "_id" : "3",
-        "_score" : 1.0,
-        "_source" : {
-          "user" : "elastic",
-          "post_date" : "2019-01-15T01:46:38",
-          "message" : "김치가 미국에서 인기인가요?"
-        }
-      }
-    ]
-  }
-}
+GET test_index/_search
 ```
 
 
-## 실습
-### 인덱스 설정 예
-```
-PUT drink
-{
-  "settings": {
-    "index": {
-        "number_of_shards": 3,
-        "number_of_replicas": 1
-    }
-}
-```
+## Python 으로 접근하기
 
-샤드의 개수를 3개로 정하고 복제본이 1개인 설정을 가진 drink 인덱스가 생성되었다.  
-- 샤드 : 루씬의 단일 검색 인스턴스로 인덱스는 샤드 단위로 분리되어 각 노드에 분산 저장됨.  
+### Python 패키지 설치
+필요하면 가상환경을 사용한다. 가상환경 생성은 이번 주제가 아니므로 기술하지 않는다.  
 
-현재는 노드당 하나의 샤드가 들어가도록 3개로 설정했다.  
-
-### 분석기 설정
-분석기가 있어야 우리가 원하는 형태의 색인이 가능하다. 정리, 색인할 때 특정한 규칙과 흐름에 의해 텍스트를 변경(토큰화)하는 과정을 분석(Analyze)이라고 하며, 해당 처리는 분석기(Analyzer)를 통해서 이루어진다. 프로젝트에선 한글명과 영문명 두 개의 필드를 비교하므로 각각 다른 분석기가 필요하다. 영어명 필드는 snowball 형태소 분석기를 사용하고 한글명 필드는 nori라는 토크나이저를 사용했다.
-
-### 프로젝트 인덱스 세팅
-```
-PUT drink
-{
-  "settings": {
-    "index": {
-        "number_of_shards": 3,
-        "number_of_replicas": 1
-    }
-    , 
-    "analysis": {
-      "analyzer": {
-        "english_name_analyzer": {
-          "type": "custom",
-          "tokenizer": "whitespace",
-          "filter": ["lowercase", "stop", "snowball"]
-        }
-        ,
-        "nori_without_category_analyzer": {
-          "type": "custom",
-          "tokenizer": "nori_mixed",
-          "filter": ["nori_filter", "category_stop_filter"]
-        }
-        ,
-        "nori_with_category_analyzer": {
-          "type": "custom",
-          "tokenizer": "nori_mixed",
-          "filter": ["nori_filter"]
-        }
-      }
-      ,
-      "tokenizer": {
-        "nori_mixed": {
-          "type": "nori_tokenizer",
-          "decompound_mode": "mixed"
-        }
-      }
-      ,
-      "filter": {
-          "nori_filter": {
-            "type": "nori_part_of_speech",
-            "stoptags": [
-              "IC"
-            ]
-          }
-          ,
-          "category_stop_filter": {
-            "type": "stop",
-            "stopwords": [
-              "소주", "맥주", "와인", "막걸리", "양주", "칵테일"
-            ]
-          }
-        }
-    }
-  }
-  ,
-  "mappings": {
-      "properties": {
-        "id": {
-          "type": "long"
-        },
-        "name": {
-          "type": "text",
-          "analyzer": "nori_without_category_analyzer"
-        },
-        "englishName": {
-          "type": "text",
-          "analyzer": "english_name_analyzer"
-        },
-        "category": {
-          "type": "text",
-          "analyzer": "nori_with_category_analyzer"
-        }
-    }
-  }
-}
-```
-
-### 검색쿼리
-```
-GET drink/_search
-{
-  "query": {
-    "bool": {
-      "should": [
-        {
-         "match_phrase": {
-           "name": {
-              "query": "금성맥주",
-              "slop": 1,
-              "boost": 2
-            }
-         } 
-        }
-        ,
-        {
-         "match_phrase": {
-            "englishName": {
-              "query": "금성맥주",
-              "slop": 1,
-              "boost": 2
-            }
-         } 
-        }
-        ,
-        {
-         "multi_match" : {
-            "query": "금성맥주",
-            "type": "best_fields",
-            "fields": ["name", "englishName"],
-            "tie_breaker": 0.3
-          }
-        }
-        ,
-        {
-          "match": {
-           "category": {
-              "query": "금성맥주",
-              "boost": 0.5
-           }
-          }  
-        }
-      ]
-    }
-  }
-}
-```
-
-bool 복합 쿼리를 사용했다. 여러 조건들을 총합해서 검색하는 쿼리로 must, must_not, should, filter 가 있다. 자세한 설명은 아래 참고 자료 Elastic 가이드 북에 있다. 나는 원하는 조건을 맞추기 위해 위에서부터 조건에 맞으면 가중치를 주고 없으면 다음 조건으로 넘어가는 should를 사용했다. must일 시 조건에 해당하지 않으면 false를 반환해버려 A가 아니면 B라는 조건이 성립하지 않는다. 따로 or 조건을 걸어줄 수도 있지만 가중치 boost를 통해 score 조절을 해서 원하는 결과에 가까울수록 점수가 높아지도록 하고 싶었기 때문에 should를 사용했다.
-
-> 출처 : [Elasticsearch - 1편][3]
-## 참고 자료
-- [AWS ElasticSearch 구축 및 기초 세팅](https://danidani-de.tistory.com/52), 2021. 4. 11.
-- [Elasticsearch - 1편][3], 2021. 11. 2.
-- [Elastic 가이드 북][2]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## Python 패키지 설치
 ```cmd
 pip install elasticsearch==8.1.0
 ```
 
-### Elasticsearch Python Client
-https://www.elastic.co/guide/en/elasticsearch/client/python-api/current/index.html
+### Kibana Dev tools 에서 입력된 데이타를 확인
+Kibana 에서 만든 API key 와   
+Elasticsearch 처음 시작 시 콘솔에서 보인 fingerprint 항목 또는 만들어진 http_ca.crt 파일을 사용해서 접속 정보를 구성한다.  
 
-## Python 전체 패키지 업데이트
+```python
+from elasticsearch import Elasticsearch
+
+es = Elasticsearch(
+        "https://localhost:9200",
+        api_key=('bJu3i38B0jTokFLxBNhe','i1uzK3elTVSpZhakFD8vnw'),
+        ssl_assert_fingerprint=("7232afeadcd21cd1193f7f5bbe1d475b12be3de76e44ddb961ec692cf725f94a"),
+    )
+    
+res = es.get(index="test_index", id=1)
+print(res['_source'])
 ```
-pip freeze > package.txt
-pip install -r package.txt --upgrade
+
+또는, 
+
+```python
+from elasticsearch import Elasticsearch
+
+es = Elasticsearch(
+        "https://localhost:9200",
+        api_key=('bJu3i38B0jTokFLxBNhe','i1uzK3elTVSpZhakFD8vnw'),
+        ca_certs=r'D:\ES\elasticsearch-8.1.0\config\certs\http_ca.crt',
+    )
+    
+res = es.get(index="test_index", id=1)
+print(res['_source'])
 ```
 
-1. pip freeze > package.txt 로 패키지 전체 저장
-2. package.txt 를 열어 == 부분을 >= 로 변경(Ctrl + h 후 변경)
-3. pip install -r package.txt --upgrade 명령어 실행
+#### 출력 
+```json
+{'body': '김치는 맛있어', 'name': '홍길동'}
+```
 
----
-[1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/zip-windows.html "윈도우에서 Elasticsearch 설치"
-[2]: https://esbook.kimjmin.net/ "Elastic 가이드 북 (한글)"
-[3]: https://jujeol-jujeol.github.io/2021/11/02/Elasticsearch-1/ "Elasticsearch - 1편, 2021. 11. 2."
+## Elasticsearch 에 한글 형태소 분석기 nori 설치
+nori는 Elastic에서 개발한 한국어 형태소 분석기  
+elasticsearch-plugin 으로 설치한다.   
+Korean (nori) Analysis Plugin [메뉴얼][5]  
+
+```cmd
+cd D:\ES\elasticsearch-8.1.0
+bin\elasticsearch-plugin install analysis-nori  
+```
+
+### 설치 출력 메세지
+```cmd
+-> Installing analysis-nori
+-> Downloading analysis-nori from elastic
+[=================================================] 100%?? 
+-> Installed analysis-nori
+-> Please restart Elasticsearch to activate any plugins installed
+```
+
+
+
+
+## Python 으로 검색엔진 구축
+- 참고 : 
+  + https://mixedprograming.tistory.com/11
+  + https://blog.nerdfactory.ai/2019/04/29/django-elasticsearch-restframework.html
+
+
+## 설정
+
+### Python 가상환경
+```cmd
+python -m venv django
+django\Scripts\activate.bat
+```
+
+MS-Windows 10 에서는 상황에 따라 `activate.bat` or `activate.ps1` 실행
+
+### python 패키지 설치
+django 가상환경에서 아래의 명령으로 패키지 설치  
+
+```cmd
+pip install django
+pip install djangorestframework
+```
+
+### Django 설정
+작업 디렉토리에서 프로젝트를 만들고 프로젝트 내부에 별도의 어플리케이션 만들기
+
+```cmd
+django-admin.exe startproject server_project
+cd server_project
+python manage.py startapp search_app
+```
+
+### INSTALLED_APPS 설정
+INSTALLED_APPS에는 현재 Django 인스턴스에 활성화된 모든 Django 애플리케이션의 이름들이 나열되어 있습니다. 애플리케이션은 다수의 프로젝트에서 사용할 수 있으므로 server_project/settings.py에서 등록을 해야 합니다.  
+
+server_project\server_project\setting.py 파일 내에서 INSTALLED_APPS 에 'rest_framwework', 'search_app' 추가  
+
+```python
+# server_project/settings.py
+
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'rest_framework',
+    'search_app',
+]
+```
+
+### 인덱스 설정 및 생성 
+> https://www.elastic.co/guide/en/elasticsearch/reference/master/indices-create-index.html
+
+한글 형태소 분석기 nori 를 통해 데이터를 Tokenizing 할 수 있도록 설정  
+search_app 디렉토리 아래 setting_bulk.py 파일을 생성해서 구현  
+
+#### mapping 
+mapping은 관계형 데이터베이스의 schema와 비슷한 개념으로, Elasticsearch의 인덱스에 들어가는 데이터의 타입을 정의하는 것입니다.  
+mapping 설정을 직접 해주지 않아도 Elastic에서 자동으로 mapping이 만들어지지만 사용자의 의도대로 mapping 해줄 것이라는 보장을 받을 수 없습니다.  
+mapping이 잘못된다면 후에 Kibana와 연동할 때도 비효율적이기 때문에 Elastic에서는 mapping을 직접 하는 것을 권장합니다.  
+각 필드의 타입을 정의하고 위에서 설정해준 분석기 ‘my_analyzer’로 title과 content를 분석할 수 있도록 설정해줍니다.  
+
+```python
+# search_app/setting_bulk.py
+
+es.indices.create(
+    index='dictionary',
+    body={
+        "settings": {
+            "index": {
+                "analysis": {
+                    "analyzer": {
+                        "my_analyzer": {
+                            "type": "custom",
+                            "tokenizer": "nori_tokenizer"
+                        }
+                    }
+                }
+            }
+        },
+        "mappings": {
+            "properties": {
+                "id": {
+                    "type": "long"
+                },
+                "title": {
+                    "type": "text",
+                    "analyzer": "my_analyzer"
+                },
+                "keyword": {
+                    "type": "text",
+                    "analyzer": "my_analyzer"
+                },
+                "field": {
+                    "type": "text",
+                    "analyzer": "my_analyzer"
+                },
+                "type": {
+                    "type": "text",
+                    "analyzer": "my_analyzer"
+                },
+            }
+        }
+    }
+)
+```
+
+### Dataset 가져오기
+- https://datasetsearch.research.google.com/ 에서 Dataset 검색 가능   
+- 여기서는 [한국학중앙연구원_한국민족문화대백과사전](https://www.data.go.kr/data/3059498/fileData.do) CSV 파일 다운로드하여 사용
+
+
+### Bulk 파일 만들기
+elasticsearch 에서의 bulk는 데이터를 Post 또는 Put을 하는 행위입니다.  
+search_app에 적용할 내용이니 search_app에 setting_bulk.py를 만듭니다.  
+setting_bulk.py 파일에서 구성한 mapping 구조대로 입력 데이타를 구성한다.  
+
+
+```py
+# search_app/setting_bulk.py
+
+import json, csv
+
+with open("dictionary_data.json", encoding='utf-8') as json_file:
+    json_data = json.loads(json_file.read())
+
+body = ""
+for i in json_data:
+    body = body + json.dumps({"index": {"_index": "dictionary"}}) + '\n'
+    body = body + json.dumps(i, ensure_ascii=False) + '\n'
+
+es.bulk(body)
+```
+
+body 변수는 아래와 같은 구조로 구성된다.
+
+```json
+{"index": {"_index": "dictionary"}}
+{"id": "1", "title": "가계", "keyworld": "", "field": "사회/가족", "type": "개념용어"}
+```
+
+### Elasticsearch 실행
+명령어로 실행하거나 백그라운드, 서비스 자동 시작 명령어도 있으나 여기에서는 그냥 프로그램 키는 방법으로 진행하겠습니다.  
+`D:\bin\elasticsearch-8.0.1\bin\elasticsearch.bat` 실행
+
+### setting_bulk.py 실행
+위에서 만든 데이타 bulk 파일 실행한다.  
+`python setting_bulk.py`
+
+
+
+## References
+1. [장고걸스 튜토리얼 (Django Girls Tutorial), 2019][1]
+2. [Django REST framework][2]
+3. [Elastic Stack and Product Documentation][3]
+4. [Elasticsearch Python Client API Documentation][4]
+5. [Korean (nori) Analysis Plugin][5]
+
+
+[1]: https://tutorial.djangogirls.org/ko/ "장고걸스 튜토리얼 (Django Girls Tutorial)"
+[2]: https://www.django-rest-framework.org/ "django REST framework"
+[3]: https://www.elastic.co/guide/index.html "Elastic Stack and Product Documentation"
+[4]: https://elasticsearch-py.readthedocs.io/en/master/api.html "Elasticsearch Python Client API Documentation"
+[5]: https://www.elastic.co/guide/en/elasticsearch/plugins/current/analysis-nori.html "Korean (nori) Analysis Plugin"
