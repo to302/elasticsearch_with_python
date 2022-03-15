@@ -89,7 +89,7 @@ elastic 계정은 관리 작업을 위한 것으로 일반 연동에 사용될 �
 2. Management - Security - API Keys 메뉴로 접근
 3. 우측상단 Create API key 버튼을 눌러 연동에 사용할 정보를 생성  
    다양한 형식의 Key Format 이 주어지므로 필요한 것을 사용하면 된다.
-   이어지는 Python 예제에서는 JSON 형식의 데이타를 이용한다.    
+   이어지는 Python 예제에서는 JSON 형식에서 보이는 id, api_key 데이타를 이용한다.    
    **key 는 만들 당시에만 보여지므로 복사를 따로 해두는 것이 좋다.**  
    ![](./images/kibana_api_keys.png)  
 
@@ -188,9 +188,9 @@ print(res['_source'])
 ```
 
 ## Elasticsearch 에 한글 형태소 분석기 nori 설치
-nori는 Elastic에서 개발한 한국어 형태소 분석기  
 elasticsearch-plugin 으로 설치한다.   
 Korean (nori) Analysis Plugin [메뉴얼][5]  
+The Korean (nori) Analysis plugin integrates Lucene nori analysis module into elasticsearch. It uses the mecab-ko-dic dictionary to perform morphological analysis of Korean texts.
 
 ```cmd
 cd D:\ES\elasticsearch-8.1.0
