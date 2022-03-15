@@ -1,4 +1,4 @@
-# Python, Django, Elasticsearch 검색엔진 구축
+# Elasticsearch, Python 이용 환경 만들기
 작성일 : 2022-03-15
  
 ## 사용 환경
@@ -111,7 +111,7 @@ Logstach: bJu3i38B0jTokFLxBNhe:i1uzK3elTVSpZhakFD8vnw
 ![](./images/kibana_dev_tools_console.png)  
 
 ```
-POST test_index/_doc/1
+PUT test_index/_doc/1
 {
     "body":"김치는 맛있어",
     "name":"홍길동"
@@ -121,14 +121,14 @@ POST test_index/_doc/1
 우측 창에 입력 상태 확인
 비슷한 조건으로 몇 개 더 만든다.
 ```
-POST test_index/_doc/2
+PUT test_index/_doc/2
 {
     "body":"김치찌개도 맛있어",
     "name":"황진이"
 }
 ```
 ```
-POST test_index/_doc/3
+PUT test_index/_doc/3
 {
     "body":"김치찌개 먹고싶다.",
     "name":"홍길동"
@@ -189,7 +189,7 @@ print(res['_source'])
 
 ## Elasticsearch 에 한글 형태소 분석기 nori 설치
 elasticsearch-plugin 으로 설치한다.   
-Korean (nori) Analysis Plugin [메뉴얼][5]  
+Korean (nori) Analysis Plugin [설명서][5]  
 The Korean (nori) Analysis plugin integrates Lucene nori analysis module into elasticsearch. It uses the mecab-ko-dic dictionary to perform morphological analysis of Korean texts.
 
 ```cmd
@@ -206,6 +206,21 @@ bin\elasticsearch-plugin install analysis-nori
 -> Please restart Elasticsearch to activate any plugins installed
 ```
 
+---
+
+# Elasticsearch 검색 환경 만들기
+
+## Dataset 가져오기
+- https://datasetsearch.research.google.com/ 에서 Dataset 검색 가능   
+- 여기서는 [한국학중앙연구원_한국민족문화대백과사전](https://www.data.go.kr/data/3059498/fileData.do) CSV 파일 다운로드하여 사용
+  + dictionary_data.csv 파일로 저장
+
+### 컬럼명
+컬럼명
+항목명, 원어, 이칭, 키워드, 분야, 유형, 시대, 웹사이트 주소
+
+## Bulk 파일 만들기
+elasticsearch 에서의 bulk는 복수 개의 indexing, deleting 등 을 한번의 API call 로 수행하는 것이다.
 
 
 
