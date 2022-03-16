@@ -208,19 +208,17 @@ bin\elasticsearch-plugin install analysis-nori
 
 ---
 
-# Elasticsearch 검색 환경 만들기
+# Elasticsearch 검색
 
 ## Dataset 가져오기
-- https://datasetsearch.research.google.com/ 에서 Dataset 검색 가능   
-- 여기서는 [한국학중앙연구원_한국민족문화대백과사전](https://www.data.go.kr/data/3059498/fileData.do) CSV 파일 다운로드하여 사용
-  + dictionary_data.csv 파일로 저장
-
-### 컬럼명
-컬럼명
-항목명, 원어, 이칭, 키워드, 분야, 유형, 시대, 웹사이트 주소
-
+- 전국문화축제표준데이터, https://www.data.go.kr/data/15013104/standard.do
+- json 형식 파일 다운로드
+  
 ## Bulk 파일 만들기
-elasticsearch 에서의 bulk는 복수 개의 indexing, deleting 등 을 한번의 API call 로 수행하는 것이다.
+- elasticsearch 에서의 bulk는 복수 개의 indexing, deleting 등 을 한번의 API call 로 수행하는 것이다.
+- Elastic Docs - [Create index API](https://www.elastic.co/guide/en/elasticsearch/reference/master/indices-create-index.html)
+- 참고 : [[Python] elasticsearch bulk insert contain _id](https://pydole.tistory.com/entry/Python-elasticsearch-bulk-insert-contain-id)
+
 
 
 
