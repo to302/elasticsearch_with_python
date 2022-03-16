@@ -14,14 +14,14 @@ mapping = None
 with open('mapping.json', 'r', encoding='utf-8') as fd:
     mapping = json.load(fd)
 
-if not es.indices.exists(index=index_name):
+if es.indices.exists(index=index_name):
+    print(index_name, "index exists.")
+else:
     es.indices.create(
         index=index_name,
         mappings = mapping,
     )
-    print('index is created.')
-else:
-    print("index exists.")
+    print(index_name, 'index is created.')
 
 
 def yield_data():
