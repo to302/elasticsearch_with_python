@@ -1,5 +1,4 @@
-# Elasticsearch, Python 이용 환경 만들기
-작성일 : 2022-03-15
+# Elasticsearch, Python (1) - 이용 환경 만들기
  
 ## 사용 환경
 - MS-Windows 10
@@ -51,6 +50,21 @@ Elasticsearch 가 처음 시작되면 `config/certs` 디렉토리가 만들어�
 만들어진 `http_ca.crt` 파일은 Python 접속을 위해 사용된다.  
 시작 시 Console 에 보이는 내용 중 `HTTP CA certificate SHA-256 fingerprint` 항목의 값은 Python 에서 접속을 위해 사용된다. 
 
+### fingerprint 확인 방법 (Optional)
+Windows 10 에는 openssl 이 기본 설치되어 있지 않다. openssl 을 설치하거나, git, mingw 를 설치하면 openssl 이 포함되어 있다.  
+아래는 git bash 에서 실행  
+
+```bash
+cd d:/es/elasticsearch-8.1.0/config/certs
+openssl x509 -noout -fingerprint -sha256 -inform pem -in http_ca.crt
+```
+
+':' 표시만 제거하면 elasticsearch 시작 시 보여주는 fingerprint 와 동일하다.
+
+### Elasticsearch 실행 확인
+```
+curl --cacert d:\es\elasticsearch-8.1.0\config\certs\http_ca.crt -u elastic https://localhost:9200
+```
 
 ### Kibana 실행
 ```cmd
@@ -160,7 +174,7 @@ from elasticsearch import Elasticsearch
 es = Elasticsearch(
         "https://localhost:9200",
         api_key=('bJu3i38B0jTokFLxBNhe','i1uzK3elTVSpZhakFD8vnw'),
-        ssl_assert_fingerprint=("7232afeadcd21cd1193f7f5bbe1d475b12be3de76e44ddb961ec692cf725f94a"),
+        ca_certs=r'D:\ES\elasticsearch-8.1.0\config\certs\http_ca.crt',
     )
     
 res = es.get(index="test_index", id=1)
@@ -172,10 +186,11 @@ print(res['_source'])
 ```python
 from elasticsearch import Elasticsearch
 
+# ssl_assert_fingerprint 방식이 되다가 안되는 경우가 발생
 es = Elasticsearch(
         "https://localhost:9200",
         api_key=('bJu3i38B0jTokFLxBNhe','i1uzK3elTVSpZhakFD8vnw'),
-        ca_certs=r'D:\ES\elasticsearch-8.1.0\config\certs\http_ca.crt',
+        ssl_assert_fingerprint=("7232afeadcd21cd1193f7f5bbe1d475b12be3de76e44ddb961ec692cf725f94a"),
     )
     
 res = es.get(index="test_index", id=1)
@@ -189,7 +204,7 @@ print(res['_source'])
 
 ## Elasticsearch 에 한글 형태소 분석기 nori 설치
 elasticsearch-plugin 으로 설치한다.   
-Korean (nori) Analysis Plugin [설명서][5]  
+Korean (nori) Analysis Plugin [설명서][3]  
 The Korean (nori) Analysis plugin integrates Lucene nori analysis module into elasticsearch. It uses the mecab-ko-dic dictionary to perform morphological analysis of Korean texts.
 
 ```cmd
@@ -208,184 +223,119 @@ bin\elasticsearch-plugin install analysis-nori
 
 ---
 
-# Elasticsearch 검색
+# Elasticsearch, Python (2) - Bulk 입력
 
 ## Dataset 가져오기
 - 전국문화축제표준데이터, https://www.data.go.kr/data/15013104/standard.do
-- json 형식 파일 다운로드
+- json 형식 파일 다운로드 - `전국문화축제표준데이터.json`
   
-## Bulk 파일 만들기
-- elasticsearch 에서의 bulk는 복수 개의 indexing, deleting 등 을 한번의 API call 로 수행하는 것이다.
-- Elastic Docs - [Create index API](https://www.elastic.co/guide/en/elasticsearch/reference/master/indices-create-index.html)
-- 참고 : [[Python] elasticsearch bulk insert contain _id](https://pydole.tistory.com/entry/Python-elasticsearch-bulk-insert-contain-id)
+## Bulk 개념
+- elasticsearch 에서의 bulk는 복수 개의 indexing, delete 등 을 한번의 API call 로 수행하는 것이다.
+
+### Elasticsearch Guide 
+- Create index API, https://www.elastic.co/guide/en/elasticsearch/reference/master/indices-create-index.html
+- Bulk API, https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
+
+### Python Elasticsearch Client
+- Helpers, https://elasticsearch-py.readthedocs.io/en/v8.1.0/helpers.html
 
 
+## Python 코드 작성
+입력되는 데이타의 구조(mapping)는 데이타가 입력되면 자동으로 설정되기는 하지만, 사용자가 원하는 구조로 설정되지 않기에 명시적으로 작성해주는 것이 데이타를 다루는데 좋다.  
+아래의 코드에서 mapping 변수가 입력 데이타의 구조를 작성하는 부분인데, 이는 다음에 다루기로 하고 주석 처리를 하여 자동으로 생성되게 한다.  
+데이타는 10개만 입력되게 처리  
 
-
-## Python 으로 검색엔진 구축
-- 참고 : 
-  + https://mixedprograming.tistory.com/11
-  + https://blog.nerdfactory.ai/2019/04/29/django-elasticsearch-restframework.html
-
-
-## 설정
-
-### Python 가상환경
-```cmd
-python -m venv django
-django\Scripts\activate.bat
-```
-
-MS-Windows 10 에서는 상황에 따라 `activate.bat` or `activate.ps1` 실행
-
-### python 패키지 설치
-django 가상환경에서 아래의 명령으로 패키지 설치  
-
-```cmd
-pip install django
-pip install djangorestframework
-```
-
-### Django 설정
-작업 디렉토리에서 프로젝트를 만들고 프로젝트 내부에 별도의 어플리케이션 만들기
-
-```cmd
-django-admin.exe startproject server_project
-cd server_project
-python manage.py startapp search_app
-```
-
-### INSTALLED_APPS 설정
-INSTALLED_APPS에는 현재 Django 인스턴스에 활성화된 모든 Django 애플리케이션의 이름들이 나열되어 있습니다. 애플리케이션은 다수의 프로젝트에서 사용할 수 있으므로 server_project/settings.py에서 등록을 해야 합니다.  
-
-server_project\server_project\setting.py 파일 내에서 INSTALLED_APPS 에 'rest_framwework', 'search_app' 추가  
-
+### es_bulk.py
 ```python
-# server_project/settings.py
+from elasticsearch import Elasticsearch
+from elasticsearch import helpers
+import json
 
-INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'rest_framework',
-    'search_app',
-]
-```
-
-### 인덱스 설정 및 생성 
-> https://www.elastic.co/guide/en/elasticsearch/reference/master/indices-create-index.html
-
-한글 형태소 분석기 nori 를 통해 데이터를 Tokenizing 할 수 있도록 설정  
-search_app 디렉토리 아래 setting_bulk.py 파일을 생성해서 구현  
-
-#### mapping 
-mapping은 관계형 데이터베이스의 schema와 비슷한 개념으로, Elasticsearch의 인덱스에 들어가는 데이터의 타입을 정의하는 것입니다.  
-mapping 설정을 직접 해주지 않아도 Elastic에서 자동으로 mapping이 만들어지지만 사용자의 의도대로 mapping 해줄 것이라는 보장을 받을 수 없습니다.  
-mapping이 잘못된다면 후에 Kibana와 연동할 때도 비효율적이기 때문에 Elastic에서는 mapping을 직접 하는 것을 권장합니다.  
-각 필드의 타입을 정의하고 위에서 설정해준 분석기 ‘my_analyzer’로 title과 content를 분석할 수 있도록 설정해줍니다.  
-
-```python
-# search_app/setting_bulk.py
-
-es.indices.create(
-    index='dictionary',
-    body={
-        "settings": {
-            "index": {
-                "analysis": {
-                    "analyzer": {
-                        "my_analyzer": {
-                            "type": "custom",
-                            "tokenizer": "nori_tokenizer"
-                        }
-                    }
-                }
-            }
-        },
-        "mappings": {
-            "properties": {
-                "id": {
-                    "type": "long"
-                },
-                "title": {
-                    "type": "text",
-                    "analyzer": "my_analyzer"
-                },
-                "keyword": {
-                    "type": "text",
-                    "analyzer": "my_analyzer"
-                },
-                "field": {
-                    "type": "text",
-                    "analyzer": "my_analyzer"
-                },
-                "type": {
-                    "type": "text",
-                    "analyzer": "my_analyzer"
-                },
-            }
-        }
-    }
+es = Elasticsearch( 
+        'https://localhost:9200',
+        api_key=('-cN1kX8BAaFJSMrVR1f_','Ax84KJycSCG3fXU-VIs_BQ'), 
+        ca_certs=r'D:\ES\elasticsearch-8.1.0\config\certs\http_ca.crt',
 )
+
+index_name = 'fest-index'
+mapping = None
+
+# with open('mapping.json', 'r', encoding='utf-8') as fd:
+#     mapping = json.load(fd)
+
+if es.indices.exists(index=index_name):
+    print(index_name, "index exists.")
+else:
+    es.indices.create(
+        index=index_name,
+        mappings = mapping,
+    )
+    print(index_name, 'index is created.')
+
+def yield_data():
+    with open('전국문화축제표준데이터.json','r', encoding='utf-8') as fd:
+        jdat = json.load(fd)['records']
+    
+    for i in jdat[0:10]:
+        yield {
+            "_index": index_name,
+            "_source": i,
+        }
+
+helpers.bulk(es, yield_data())
 ```
 
-### Dataset 가져오기
-- https://datasetsearch.research.google.com/ 에서 Dataset 검색 가능   
-- 여기서는 [한국학중앙연구원_한국민족문화대백과사전](https://www.data.go.kr/data/3059498/fileData.do) CSV 파일 다운로드하여 사용
-
-
-### Bulk 파일 만들기
-elasticsearch 에서의 bulk는 데이터를 Post 또는 Put을 하는 행위입니다.  
-search_app에 적용할 내용이니 search_app에 setting_bulk.py를 만듭니다.  
-setting_bulk.py 파일에서 구성한 mapping 구조대로 입력 데이타를 구성한다.  
-
-
-```py
-# search_app/setting_bulk.py
-
-import json, csv
-
-with open("dictionary_data.json", encoding='utf-8') as json_file:
-    json_data = json.loads(json_file.read())
-
-body = ""
-for i in json_data:
-    body = body + json.dumps({"index": {"_index": "dictionary"}}) + '\n'
-    body = body + json.dumps(i, ensure_ascii=False) + '\n'
-
-es.bulk(body)
+## Kibana - Dev tools 에서 확인
+```
+get /fest-index/_search
 ```
 
-body 변수는 아래와 같은 구조로 구성된다.
+### 입력
+![](./images/kibana_get_fest-index.png)  
 
-```json
-{"index": {"_index": "dictionary"}}
-{"id": "1", "title": "가계", "keyworld": "", "field": "사회/가족", "type": "개념용어"}
+### 출력
+![](./images/kibana_get_fest-index_result.png)  
+
+
+## Kibana 구동 시 오류 (Optional)
+처음 설치해서 실행하면 잘되던 것이 두번째 실행을 하면 Elasticsearch와 연결이 되지 않아 실행되지 않는 경우가 발생할 경우도 있다.  
+이 경우 config\kibana.yml 파일을 열어 보면 아래와 같이 IP로 URL 이 작성된 부분이 보인다.  
+사용자의 PC가 동적으로 IP를 받아오는 경우라면, 매번 IP가 변경되기 때문에 연결이 되지 않는다.  
+내 PC에서만 사용하는 것이라면 이 IP를 localhost 로 변경하면 정상적으로 실행된다.  
+
+```yaml
+elasticsearch.hosts: ['https://100.104.0.4:9200']
+hosts: ['https://100.104.0.4:9200'], ca_trusted_fingerprint: 42376fbf31e025706536cfc90b7f530f01b0d172b0d57622d050d0fb158677bc}]
 ```
 
-### Elasticsearch 실행
-명령어로 실행하거나 백그라운드, 서비스 자동 시작 명령어도 있으나 여기에서는 그냥 프로그램 키는 방법으로 진행하겠습니다.  
-`D:\bin\elasticsearch-8.0.1\bin\elasticsearch.bat` 실행
+```yaml
+elasticsearch.hosts: ['https://localhost:9200']
+hosts: ['https://localhost:9200'], ca_trusted_fingerprint: 42376fbf31e025706536cfc90b7f530f01b0d172b0d57622d050d0fb158677bc}]
+```
 
-### setting_bulk.py 실행
-위에서 만든 데이타 bulk 파일 실행한다.  
-`python setting_bulk.py`
+---
 
+# Elasticsearch, Python (3) - mapping 구성
 
+## 자동설정된 mapping 확인
+Kibana, Dev tools 에서 아래의 코드로 확인  
+```
+get /fest-index/_mapping
+```
 
-## References
-1. [장고걸스 튜토리얼 (Django Girls Tutorial), 2019][1]
-2. [Django REST framework][2]
-3. [Elastic Stack and Product Documentation][3]
-4. [Elasticsearch Python Client API Documentation][4]
-5. [Korean (nori) Analysis Plugin][5]
+### 결과 화면
+![](./images/kibana_mapping.png)  
 
+---
+# References
+1. [Elastic Stack and Product Documentation][1]
+2. [Elasticsearch Python Client v8.1.0][2]
+3. [Korean (nori) Analysis Plugin][3]
+4. [장고걸스 튜토리얼 (Django Girls Tutorial), 2019][4]
+5. [Django REST framework][5]
 
-[1]: https://tutorial.djangogirls.org/ko/ "장고걸스 튜토리얼 (Django Girls Tutorial)"
-[2]: https://www.django-rest-framework.org/ "django REST framework"
-[3]: https://www.elastic.co/guide/index.html "Elastic Stack and Product Documentation"
-[4]: https://elasticsearch-py.readthedocs.io/en/master/api.html "Elasticsearch Python Client API Documentation"
-[5]: https://www.elastic.co/guide/en/elasticsearch/plugins/current/analysis-nori.html "Korean (nori) Analysis Plugin"
+[1]: https://www.elastic.co/guide/index.html "Elastic Stack and Product Documentation"
+[2]: https://elasticsearch-py.readthedocs.io/en/v8.1.0/ "Elasticsearch Python Client v8.1.0"
+[3]: https://www.elastic.co/guide/en/elasticsearch/plugins/current/analysis-nori.html "Korean (nori) Analysis Plugin"
+[4]: https://tutorial.djangogirls.org/ko/ "장고걸스 튜토리얼 (Django Girls Tutorial)"
+[5]: https://www.django-rest-framework.org/ "django REST framework"
