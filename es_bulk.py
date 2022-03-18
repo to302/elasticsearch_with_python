@@ -5,7 +5,8 @@ import json
 es = Elasticsearch( 
         'https://localhost:9200',
         # api_key=('-cN1kX8BAaFJSMrVR1f_','Ax84KJycSCG3fXU-VIs_BQ'), # Home Version
-        api_key=('bJu3i38B0jTokFLxBNhe','i1uzK3elTVSpZhakFD8vnw'), # Office Version
+        # api_key=('bJu3i38B0jTokFLxBNhe','i1uzK3elTVSpZhakFD8vnw'), # Office Version
+        basic_auth=('pyagent','pyagentpw'),
         ca_certs=r'D:\ES\elasticsearch-8.1.0\config\certs\http_ca.crt',
 )
 
@@ -37,4 +38,4 @@ def yield_data():
             "_source": i,
         }
 
-helpers.bulk(es, yield_data())
+# helpers.bulk(es, yield_data())
