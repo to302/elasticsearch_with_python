@@ -297,9 +297,19 @@ get /fest-index/_search
 ![](./images/kibana_get_fest-index_result.png)  
 
 
+## 자동설정된 mapping 확인
+Kibana, Dev tools 에서 아래의 코드로 확인  
+```
+get /fest-index/_mapping
+```
+
+### 결과 화면
+![](./images/kibana_mapping.png)  
+
+
 ## Kibana 구동 시 오류 (Optional)
 처음 설치해서 실행하면 잘되던 것이 두번째 실행을 하면 Elasticsearch와 연결이 되지 않아 실행되지 않는 경우가 발생할 경우도 있다.  
-이 경우 config\kibana.yml 파일을 열어 보면 아래와 같이 IP로 URL 이 작성된 부분이 보인다.  
+이 경우 `config\kibana.yml` 파일을 열어 보면 아래와 같이 IP로 URL 이 작성된 부분이 보인다.  
 사용자의 PC가 동적으로 IP를 받아오는 경우라면, 매번 IP가 변경되기 때문에 연결이 되지 않는다.  
 내 PC에서만 사용하는 것이라면 이 IP를 localhost 로 변경하면 정상적으로 실행된다.  
 
@@ -314,17 +324,247 @@ hosts: ['https://localhost:9200'], ca_trusted_fingerprint: 42376fbf31e025706536c
 ```
 
 ---
+# Elasticsearch, Python (3) - 검색 환경 구성
 
-# Elasticsearch, Python (3) - mapping 구성
+## 참고
+- Elasticsearch Guide [8.1] 
+  + Text analysis, https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis.html
+  + Mapping, https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping.html
+    * Field data types https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-types.html
+  + Analysis Plugins 
+    * Korean (nori) Analysis Plugin
+      - nori_tokenizer, https://www.elastic.co/guide/en/elasticsearch/plugins/current/analysis-nori-tokenizer.html
 
-## 자동설정된 mapping 확인
-Kibana, Dev tools 에서 아래의 코드로 확인  
+## 개요
+- 한글을 이용한 검색환경을 위해서 nori tokenizer 를 사용하도록 설정한다.
+- 지리정보 사용을 위해서 경도와 위도 정보를 하나로 통합한다.
+
+## settings 설정
+애널라이저, 토크나이저, 토큰 필터 등은 settings 정보에서 정의한다.  
+
+```json
+{
+  "index": {
+    "analysis": {
+      "tokenizer": {
+        "nori_user_dict": {
+          "type": "nori_tokenizer",
+          "decompound_mode": "mixed",
+          "discard_punctuation": "false",
+          "user_dictionary": "userdict_ko.txt"
+        }
+      },
+      "analyzer": {
+        "my_analyzer": {
+          "type": "custom",
+          "tokenizer": "nori_user_dict"
+        }
+      }
+    }
+  }
+}
 ```
-get /fest-index/_mapping
+위의 코드에서 `"user_dictionary": "userdict_ko.txt"` 부분에 정의된 userdict_ko.txt 파일은 elasticsearch 의 `config\userdict_ko.txt`로 파일을 만들어줘야 한다.  
+이는 나중에 사용자 정의 사전을 만들기 위해 사용된다. 지금 당장은 필요없으니 빼고 사용해도 무방하다.   
+
+## Dataset 에서 사용할 정보 선택
+사용하고 있는 `전국문화축제표준데이터.json` 의 Data 헤드정보를 보면 아래와 같이 구성되어 있다.  
+
+> 축제명, 개최장소, 축제시작일자, 축제종료일자, 축제내용, 주관기관, 주최기관, 후원기관, 전화번호, 홈페이지주소,   
+> 관련정보, 소재지도로명주소, 소재지지번주소, 위도, 경도, 데이터기준일자, 제공기관코드, 제공기관명  
+
+'주관기관', '후원기관', '제공기관코드', '제공기관명' 을 빼고, 지도 정보를 위해 '위도', '경도' 정보를 하나의 값으로 통합한다.  
+
+### 변환 형태
+```json
+{
+    "name": "축제명" ,
+    "place": "개최장소" ,
+    "bdate": "축제시작일자" ,
+    "edate": "축제종료일자" ,
+    "event": "축제내용" ,
+    "managing": "주관기관" ,
+    "tel": "전화번호",
+    "web": "홈페이지주소",
+    "info": "관련정보",
+    "addr_road": "소재지도로명주소",
+    "addr_land": "소재지지번주소",
+    "location": {
+        "lat": "위도" ,
+        "lon": "경도" ,
+    },
+    "ref_date": "데이터기준일자" ,
+}
 ```
 
-### 결과 화면
-![](./images/kibana_mapping.png)  
+이러한 형태를 반영하기 위한 구조를 `mappping.json` 에서 정의하고, 한글 구문분석을 위해서 `settings.json` 에서 정의한 'my_analyzer' 를 설정에 포함한다.
+
+### mapping.json
+```json
+{
+  "properties" : {
+    "name" : {
+      "type" : "text",
+      "analyzer": "my_analyzer"
+    },
+    "place" : {
+      "type" : "text",
+      "analyzer": "my_analyzer"
+    },
+    "bdate" : {
+      "type" : "date"
+    },
+    "edate" : {
+      "type" : "date"
+    },
+    "event" : {
+      "type" : "text",
+      "analyzer": "my_analyzer"
+    },
+    "managing" : {
+      "type" : "text",
+      "analyzer": "my_analyzer"
+    },
+    "tel" : {
+      "type" : "text"
+    },
+    "web" : {
+      "type" : "text"
+    },
+    "info" : {
+      "type" : "text",
+      "analyzer": "my_analyzer"
+    },
+    "addr_road" : {
+      "type" : "text",
+      "analyzer": "my_analyzer"
+    },
+    "addr_land" : {
+      "type" : "text",
+      "analyzer": "my_analyzer"
+    },
+    "location" : {
+      "type": "geo_point"
+    },
+    "ref_date" : {
+      "type" : "date"
+    }
+  }
+}
+```
+
+### es_bulk_with_mapping.py
+```python
+from elasticsearch import Elasticsearch
+from elasticsearch import helpers
+import json
+   
+es = Elasticsearch( 
+        'https://localhost:9200',
+        api_key=('bJu3i38B0jTokFLxBNhe','i1uzK3elTVSpZhakFD8vnw'), 
+        ca_certs=r'D:\ES\elasticsearch-8.1.0\config\certs\http_ca.crt',
+)
+
+index_name = 'fest-index2'
+mapping = None
+
+if es.indices.exists(index=index_name):
+    print(index_name, "index exists.")
+else:
+    es.indices.create(
+        index=index_name,
+        mappings = json.load(open('mapping.json', 'r', encoding='utf-8')),
+        settings = json.load(open('settings.json', 'r', encoding='utf-8')),
+    )
+    print(index_name, 'index is created.')
+
+
+def ckdata(jd: dict, key: str) -> str:
+    """해당 key 유무 체크하여 정보가 없는 경우 ''를 반환"""
+    if key in jd.keys():
+        return jd[key]
+    else:
+        return ''
+
+
+def yield_data():
+    global index_name
+
+    jdat = json.load(open('전국문화축제표준데이터.json','r', encoding='utf-8'))['records']
+    for j in jdat[0:10]:
+        yield {
+            "_index": index_name,
+            "_source": {
+                            "name":j["축제명"],
+                            "place":j["개최장소"],
+                            "bdate":j["축제시작일자"],
+                            "edate":j["축제종료일자"],
+                            "event":j["축제내용"],
+                            "managing":j["주관기관"],
+                            "tel":ckdata(j, "전화번호"),
+                            "web":ckdata(j, "홈페이지주소"),
+                            "info":ckdata(j, "관련정보"),
+                            "addr_road":ckdata(j, "소재지도로명주소"),
+                            "addr_land":ckdata(j, "소재지지번주소"),
+                            "location": {
+                                "lat":j["위도"],
+                                "lon":j["경도"],
+                            },
+                            "ref_date":j["데이터기준일자"],
+                       },
+        }
+
+helpers.bulk(es, yield_data())
+```
+
+## 검색 확인
+2편 'Bulk입력'에서 `fest-index` 라는 인덱스를 만들고, 이번 편에서 `fest-index2` 라는 인덱스를 구성했다.  
+둘의 차이는 `fest-index2` 에서는 settings 를 통해 한글 분석기를 지정하고, mapping 을 통해서 그 분석기를 사용하도록 설정한 것이다.  
+이 설정의 차이는 첫번째 데이타인 '제1회 대청호 벚꽃축제'를 찾기 위해 '벚꽃' 이라는 단어로 검색하면 명확히 드러난다.  
+
+Kibana 의 Dev tools 환경에서 아래와 같이 각각 수행해 본다.
+
+### fest-index2 검색
+```
+get fest-index2/_search
+{
+  "query": {
+      "match": {"name":"벚꽃"}
+  }
+}
+```
+
+![](./images/kibana_fest-index2_search.png)  
+
+### fest-index 검색
+```
+get fest-index/_search
+{
+  "query": {
+      "match": {"축제명":"벚꽃"}
+  }
+}
+```
+
+![](./images/kibana_fest-index_search.png)  
+
+아래와 같이 검색하면 `fest-index`에서도 결과가 보여진다. 하지만, 한글 분석기를 적용한 `fest-index2` 와 달리 '추월산벚꽃축제'에 대한 내용은 검색되지 않는다.
+```
+get fest-index/_search
+{
+  "query": {
+      "match": {"축제명":"벚꽃축제"}
+  }
+}
+```
+
+![](./images/kibana_fest-index_search2.png)  
+
+
+## 정리
+분석기와 mapping 구조에 분석기를 적절하게 이용하는 부분은 좀 더 확인해 볼 필요가 있다.
+
+
 
 ---
 # References
