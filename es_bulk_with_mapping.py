@@ -5,7 +5,8 @@ import json
 es = Elasticsearch( 
         'https://localhost:9200',
         # api_key=('-cN1kX8BAaFJSMrVR1f_','Ax84KJycSCG3fXU-VIs_BQ'), # Home Version
-        api_key=('bJu3i38B0jTokFLxBNhe','i1uzK3elTVSpZhakFD8vnw'), # Office Version
+        # api_key=('bJu3i38B0jTokFLxBNhe','i1uzK3elTVSpZhakFD8vnw'), # Office Version
+        basic_auth=("pyagent", "pyagentpw"),
         ca_certs=r'D:\ES\elasticsearch-8.1.0\config\certs\http_ca.crt',
 )
 
@@ -35,28 +36,31 @@ def yield_data():
     global index_name
 
     jdat = json.load(open('전국문화축제표준데이터.json','r', encoding='utf-8'))['records']
-    for j in jdat[0:10]:
+    for j in jdat:
+        source = {
+                    "name":j["축제명"],
+                    "place":j["개최장소"],
+                    "bdate":j["축제시작일자"],
+                    "edate":j["축제종료일자"],
+                    "event":ckdata(j, "축제내용"),
+                    "managing":ckdata(j, "주관기관"),
+                    "tel":ckdata(j, "전화번호"),
+                    "web":ckdata(j, "홈페이지주소"),
+                    "info":ckdata(j, "관련정보"),
+                    "addr_road":ckdata(j, "소재지도로명주소"),
+                    "addr_land":ckdata(j, "소재지지번주소"),
+                    "ref_date":ckdata(j, "데이터기준일자"),
+                }
+        if j["위도"] != '' and j["경도"] != '':
+            source["location"] = { "lat":j["위도"], "lon":j["경도"] }
+        
         yield {
             "_index": index_name,
-            "_source": {
-                            "name":j["축제명"],
-                            "place":j["개최장소"],
-                            "bdate":j["축제시작일자"],
-                            "edate":j["축제종료일자"],
-                            "event":j["축제내용"],
-                            "managing":j["주관기관"],
-                            "tel":ckdata(j, "전화번호"),
-                            "web":ckdata(j, "홈페이지주소"),
-                            "info":ckdata(j, "관련정보"),
-                            "addr_road":ckdata(j, "소재지도로명주소"),
-                            "addr_land":ckdata(j, "소재지지번주소"),
-                            "location": {
-                                "lat":j["위도"],
-                                "lon":j["경도"],
-                            },
-                            "ref_date":j["데이터기준일자"],
-                       },
+            "_source": source,
         }
 
-
-helpers.bulk(es, yield_data())
+try:
+    helpers.bulk(es, yield_data())
+except helpers.BulkIndexError as e:
+    open('tmp.log','w',encoding='utf-8').write(str(e.errors))
+    raise e.with_traceback

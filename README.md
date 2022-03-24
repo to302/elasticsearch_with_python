@@ -331,6 +331,7 @@ hosts: ['https://localhost:9200'], ca_trusted_fingerprint: 42376fbf31e025706536c
   + Text analysis, https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis.html
   + Mapping, https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping.html
     * Field data types https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-types.html
+- Elasticsearch Plugins and Integrations [8.1]
   + Analysis Plugins 
     * Korean (nori) Analysis Plugin
       - nori_tokenizer, https://www.elastic.co/guide/en/elasticsearch/plugins/current/analysis-nori-tokenizer.html
