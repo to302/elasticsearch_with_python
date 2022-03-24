@@ -2,7 +2,7 @@
 공식 문서, https://www.elastic.co/guide/en/elasticsearch/reference/current/analyzer-anatomy.html
 
 - character filters : 문자변환, 더하기 빼기 바꾸기 등을 통해
-  + 예) Hindu-Arabic numerals (٠‎١٢٣٤٥٦٧٨‎٩‎) => Arabic-Latin equivalents (0123456789)
+  + 예) Hindu-Arabic numerals (٠١٢٣٤٥٦٧٨٩) => Arabic-Latin equivalents (0123456789)
   + 예) strip HTML elements like `<b>` from the stream
   + Analyzer에 적용하지 않거나, 하나 이상을 적용할 순서대로 등록할 수 있다.
 
