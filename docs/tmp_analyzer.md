@@ -6,7 +6,7 @@
   + 예) strip HTML elements like `<b>` from the stream
   + Analyzer에 적용하지 않거나, 하나 이상을 적용할 순서대로 등록할 수 있다.
 
-- tokenizers : 문자 쪼개기
+- tokenizers : 문자 쪼개기aa
   + 쪼개는 방식에 대한 방법들 
   + 예) `whitespace` tokenizer : "Quick brown fox!" => [Quick, brown, fox!]
   + Analyzer에 단 하나의 tokenizer 를 반드시 등록해야 한다.
