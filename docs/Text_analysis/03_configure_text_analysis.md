@@ -143,14 +143,196 @@ custom analyzer 는 아래와 같은 parameters 를 취할 수 있다.
 | tokenizer              | A built-in or customised [tokenizer][3]. (Required)           |
 | char_filter            | An optional array of built-in or customised [character filters][4].  |
 | filter                 | An optional array of built-in or customised [token filters][5].  |
-| position_increment_gap | When indexing an array of text values, Elasticsearch inserts a fake "gap" between the last term of one value and the first term of the next value to ensure that a phrase query doesnâ€™t match two terms from different array elements. Defaults to 100. See [`position_increment_gap`][6] for more.  |
+| position_increment_gap | When indexing an array of text values, Elasticsearch inserts a fake "gap" between the last term of one value and the first term of the next value to ensure that a phrase query doesn't match two terms from different array elements. Defaults to 100. See [`position_increment_gap`][6] for more.  |
 
 ### Example configuration
 Read [this][7].
 
+#### Example 1
+```
+PUT my-index-000001
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "my_custom_analyzer": {
+          "type": "custom", 
+          "tokenizer": "standard",
+          "char_filter": [
+            "html_strip"
+          ],
+          "filter": [
+            "lowercase",
+            "asciifolding"
+          ]
+        }
+      }
+    }
+  }
+}
+
+POST my-index-000001/_analyze
+{
+  "analyzer": "my_custom_analyzer",
+  "text": "Is this <b>déjà vu</b>?"
+}
+```
+
+#### Example 2
+```
+PUT my-index-000001
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "my_custom_analyzer": { 
+          "char_filter": [
+            "emoticons"
+          ],
+          "tokenizer": "punctuation",
+          "filter": [
+            "lowercase",
+            "english_stop"
+          ]
+        }
+      },
+      "tokenizer": {
+        "punctuation": { 
+          "type": "pattern",
+          "pattern": "[ .,!?]"
+        }
+      },
+      "char_filter": {
+        "emoticons": { 
+          "type": "mapping",
+          "mappings": [
+            ":) => _happy_",
+            ":( => _sad_"
+          ]
+        }
+      },
+      "filter": {
+        "english_stop": { 
+          "type": "stop",
+          "stopwords": "_english_"
+        }
+      }
+    }
+  }
+}
+
+POST my-index-000001/_analyze
+{
+  "analyzer": "my_custom_analyzer",
+  "text": "I'm a :) person, and you?"
+}
+```
+
 ## Specify an analyzer
 
+### index analyzer 를 결정하는 방법
 
+1. The `analyzer` mapping parameter for the field. See Specify the analyzer for a field.
+2. The `analysis.analyzer.default` index setting. See Specify the default analyzer for an index.
+
+#### 1. Specify the analyzer for a field
+
+```
+PUT my-index-000001
+{
+  "mappings": {
+    "properties": {
+      "title": {
+        "type": "text",
+        "analyzer": "whitespace"
+      }
+    }
+  }
+}
+```
+
+#### 2. Specify the default analyzer for an index
+my-index-000001 index의 대체 분석기로 'simple' 분석기 설정 
+
+```
+PUT my-index-000001
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "default": {
+          "type": "simple"
+        }
+      }
+    }
+  }
+}
+```
+
+### query에 대한 search analyzer 지정
+[full-text query][8]를 작성할 때, `analyzer` 파라메터를 이용해서 search analyzer를 특정할 수 있다. 이 파라메터가 지정되면 다른 analyzer 보다 우선 적용된다.  
+
+아래 search API 에서 `stop` analyzer 를 `match` query 를 위한 search analyzer 로 사용하고 있다.
+
+```
+GET my-index-000001/_search
+{
+  "query": {
+    "match": {
+      "message": {
+        "query": "Quick foxes",
+        "analyzer": "stop"
+      }
+    }
+  }
+}
+```
+
+### field에 대한 search analyzer 지정
+index를 mapping할 때, `search_analyzer` mapping 파라메터를 이용해서 각각의 text field 에 대한 search analyzer 를 지정할 수 있다.
+
+**search analyzer가 지정되면 index analyzer 도 `analyzer` 파라메터로 반드시 같이 작성되어야 한다.**  
+
+다음의 create index API 는 `simple` analyzer 를 `title` field 에 대한 search analyzer 로 설정하고 있다.
+
+```
+PUT my-index-000001
+{
+  "mappings": {
+    "properties": {
+      "title": {
+        "type": "text",
+        "analyzer": "whitespace",
+        "search_analyzer": "simple"
+      }
+    }
+  }
+}
+```
+
+### index의 기본 search analyzer 지정
+index 를 생성할 때, `analysis.analyzer.default_search` 설정을 이용해 기본 search analyzer 를 지정할 수 있다.  
+
+search analyzer 가 설정되면 `analysis.analyzer.default` 설정을 이용해 기본 index analyzer 도 반드시 같이 설정되어야 한다.  
+
+
+```
+PUT my-index-000001
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "default": {
+          "type": "simple"
+        },
+        "default_search": {
+          "type": "whitespace"
+        }
+      }
+    }
+  }
+}
+```
 
 
 [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-standard-analyzer.html "Standard analyzer"
@@ -160,3 +342,4 @@ Read [this][7].
 [5]: https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-tokenfilters.html "Token filter reference"
 [6]: https://www.elastic.co/guide/en/elasticsearch/reference/current/position-increment-gap.html "Mapping Parameters >> position_increment_gap"
 [7]: https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-custom-analyzer.html#_example_configuration
+[8]: https://www.elastic.co/guide/en/elasticsearch/reference/current/full-text-queries.html "Full text queries"
